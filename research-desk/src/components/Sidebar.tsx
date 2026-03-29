@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../lib/store";
 import { extractText } from "../lib/pdf";
-import { ingestPaper, removeVectorsForPaper, saveVectorStore, getMeta, saveMeta, saveAnalysis, getAnalysis } from "../lib/rag";
+import { ingestPaper, removeVectorsForPaper, saveVectorStore, getMeta, saveMeta, saveAnalysis } from "../lib/rag";
 import { extractPaperMeta, analyzePaper } from "../lib/gemini";
 
 async function loadPdf(path: string): Promise<{ filename: string; data: ArrayBuffer }> {
