@@ -17,7 +17,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
             args: ""
           - platform: macos-latest
-            targets: "x86_64-apple-darwin,aarch64-apple-darwin"
+            target: universal-apple-darwin
             args: "--target universal-apple-darwin"
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
@@ -34,7 +34,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.targets || matrix.target }}
+          targets: ${{ matrix.target }}
 
       - name: Install dependencies (Linux)
         if: matrix.platform == 'ubuntu-22.04'
@@ -48,8 +48,9 @@ jobs:
           node-version: 20
 
       - name: Install frontend dependencies
-        run: npm ci
-        working-directory: research-desk
+        run: |
+          cd research-desk
+          npm ci
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
@@ -59,7 +60,7 @@ jobs:
           projectPath: research-desk
           tagName: ${{ github.ref_name }}
           releaseName: "Research Desk ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install."
+          releaseBody: "Automated release with AI Librarian features (Function Calling, Auto-Ingestion, Theme Shifting)."
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
