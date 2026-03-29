@@ -51,11 +51,14 @@ export interface Paper {
   meta?: PaperMeta;
 }
 
+export type ProjectModelMode = "quick" | "capable";
+
 export interface Project {
   id: string;
   name: string;
   paperIds: string[];
   createdAt: number;
+  analysisModel: ProjectModelMode;
 }
 
 export type View = "home" | "chat" | "project" | "synthesis";
@@ -147,6 +150,7 @@ interface AppState {
   renameProject: (id: string, name: string) => void;
   addPaperToProject: (projectId: string, paperId: string) => void;
   removePaperFromProject: (projectId: string, paperId: string) => void;
+  setProjectModel: (projectId: string, model: ProjectModelMode) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -266,15 +270,17 @@ export const useStore = create<AppState>()(
         set((s) => ({
           projects: [
             ...s.projects,
-            { id: crypto.randomUUID(), name, paperIds: [], createdAt: Date.now() },
+            { id: crypto.randomUUID(), name, paperIds: [], createdAt: Date.now(), analysisModel: "quick" },
           ],
         })),
-      removeProject: (id) =>
+      removeProject: (id) => {
         set((s) => ({
           projects: s.projects.filter((p) => p.id !== id),
           activeProjectId: s.activeProjectId === id ? null : s.activeProjectId,
           activeView: s.activeProjectId === id ? "home" : s.activeView,
-        })),
+        }));
+        import("./rag").then(({ deleteProjectAnalysis }) => deleteProjectAnalysis(id));
+      },
       renameProject: (id, name) =>
         set((s) => ({
           projects: s.projects.map((p) => (p.id === id ? { ...p, name } : p)),
@@ -293,6 +299,12 @@ export const useStore = create<AppState>()(
             p.id === projectId
               ? { ...p, paperIds: p.paperIds.filter((id) => id !== paperId) }
               : p,
+          ),
+        })),
+      setProjectModel: (projectId, model) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id === projectId ? { ...p, analysisModel: model } : p,
           ),
         })),
     }),

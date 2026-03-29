@@ -359,3 +359,73 @@ export async function saveChatHistory(conversationId: string, messages: Message[
 export function getChatHistory(conversationId: string): Message[] {
   return chatCache[conversationId] || [];
 }
+
+// --- Project Analysis Persistence ---
+
+export interface ThemeMapTheme {
+  name: string;
+  description: string;
+  papers: Array<{
+    paperId: string;
+    title: string;
+    relevance: "high" | "medium" | "low";
+    excerpts: string[];
+  }>;
+}
+
+export interface MethodsRow {
+  paperId: string;
+  title: string;
+  design: string;
+  sampleSize: string;
+  population: string;
+  measures: string;
+  analysisMethod: string;
+  findings: string;
+}
+
+export interface ProjectAnalysisData {
+  litReview?: { content: string; generatedAt: number };
+  themeMap?: { themes: ThemeMapTheme[]; generatedAt: number };
+  methodsTable?: { rows: MethodsRow[]; generatedAt: number };
+  bibliography?: { entries: string[]; generatedAt: number };
+  compareContrast?: { content: string; generatedAt: number };
+}
+
+let projectAnalysisCache: Record<string, ProjectAnalysisData> = {};
+
+export async function loadProjectAnalyses(): Promise<Record<string, ProjectAnalysisData>> {
+  try {
+    const dir = await getStoreDir();
+    const path = `${dir}/project-analyses.json`;
+    if (await exists(path)) {
+      const json = await readTextFile(path);
+      projectAnalysisCache = JSON.parse(json);
+    }
+  } catch (err) {
+    console.error("Failed to load project analyses:", err);
+  }
+  return projectAnalysisCache;
+}
+
+export async function saveProjectAnalysis(projectId: string, data: Partial<ProjectAnalysisData>): Promise<void> {
+  projectAnalysisCache[projectId] = {
+    ...projectAnalysisCache[projectId],
+    ...data,
+  };
+  try {
+    const dir = await getStoreDir();
+    await mkdir(dir, { recursive: true });
+    await writeTextFile(`${dir}/project-analyses.json`, JSON.stringify(projectAnalysisCache));
+  } catch (err) {
+    console.error("Failed to save project analysis:", err);
+  }
+}
+
+export function getProjectAnalysis(projectId: string): ProjectAnalysisData | undefined {
+  return projectAnalysisCache[projectId];
+}
+
+export function deleteProjectAnalysis(projectId: string): void {
+  delete projectAnalysisCache[projectId];
+}

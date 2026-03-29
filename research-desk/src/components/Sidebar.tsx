@@ -4,8 +4,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../lib/store";
 import { extractText } from "../lib/pdf";
-import { ingestPaper, removeVectorsForPaper, saveVectorStore, getMeta, saveMeta } from "../lib/rag";
-import { extractPaperMeta } from "../lib/gemini";
+import { ingestPaper, removeVectorsForPaper, saveVectorStore, getMeta, saveMeta, saveAnalysis, getAnalysis } from "../lib/rag";
+import { extractPaperMeta, analyzePaper } from "../lib/gemini";
 
 async function loadPdf(path: string): Promise<{ filename: string; data: ArrayBuffer }> {
   const filename = path.split(/[/\\]/).pop() || path;
@@ -129,14 +129,26 @@ export default function Sidebar() {
       if (apiKey.trim()) {
         updatePaper(id, { isProcessing: true, progress: 50 });
         try {
+          // 1. Embed (Index)
           await ingestPaper(
             { ...paperObj, isProcessing: true },
             apiKey,
-            (pct) => updatePaper(id, { progress: 50 + Math.round(pct * 0.5) }),
+            (pct) => updatePaper(id, { progress: 50 + Math.round(pct * 0.25) }), // 50-75%
           );
-          updatePaper(id, { isEmbedded: true, isProcessing: false, progress: 100 });
+          
+          // 2. Extract Metadata
+          updatePaper(id, { progress: 75 });
+          const fullText = pages.map((pg) => pg.text).join("\n\n");
+          const meta = await extractPaperMeta(fullText, apiKey);
+          await saveMeta(id, meta);
+          updatePaper(id, { meta, progress: 85 });
+
+          // 3. Generate Analysis
+          const analysis = await analyzePaper(fullText, apiKey);
+          await saveAnalysis(id, analysis);
+          updatePaper(id, { analysis, isEmbedded: true, isProcessing: false, progress: 100 });
         } catch (embedErr) {
-          console.error("Embedding failed:", embedErr);
+          console.error("Auto-ingestion chain failed:", embedErr);
           updatePaper(id, { isProcessing: false, progress: 100 });
         }
       } else {
@@ -215,24 +227,23 @@ export default function Sidebar() {
           onClick={() => { setSidebarTab("library"); setActiveView("home"); setActiveProjectId(null); }}
           className={`flex-1 font-ui text-xs py-2.5 transition-colors ${
             sidebarTab === "library"
-              ? "text-text-primary border-b-2 border-gold"
+              ? "text-text-primary border-b-2 border-accent"
               : "text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          Library
-        </button>
-        <button
-          onClick={() => setSidebarTab("projects")}
-          className={`flex-1 font-ui text-xs py-2.5 transition-colors ${
+            }`}
+            >
+            Library
+            </button>
+            <button
+            onClick={() => setSidebarTab("projects")}
+            className={`flex-1 font-ui text-xs py-2.5 transition-colors ${
             sidebarTab === "projects"
-              ? "text-text-primary border-b-2 border-gold"
+              ? "text-text-primary border-b-2 border-accent"
               : "text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          Projects
-        </button>
-      </div>
-
+            }`}
+            >
+            Projects
+            </button>
+            </div>
       {sidebarTab === "library" ? (
         <>
           {/* Search + Controls */}

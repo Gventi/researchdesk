@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { loadVectorStore, loadAnalyses, loadMetas, loadPaperManifest, loadChatHistory, getAnalysis, getMeta, getChatHistory } from "./lib/rag";
+import { loadVectorStore, loadAnalyses, loadMetas, loadPaperManifest, loadChatHistory, loadProjectAnalyses, getAnalysis, getMeta, getChatHistory } from "./lib/rag";
 import { extractText } from "./lib/pdf";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "./lib/store";
@@ -14,6 +14,7 @@ async function restoreLibrary() {
     loadAnalyses(),
     loadMetas(),
     loadChatHistory(),
+    loadProjectAnalyses(),
   ]);
 
   // Restore papers from manifest

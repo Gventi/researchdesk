@@ -34,7 +34,7 @@ export default function Desk() {
             key={conv.id}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-t font-ui text-[11px] cursor-pointer transition-colors shrink-0 group ${
               conv.id === activeConversationId
-                ? "text-text-primary bg-bg border-b-2 border-gold"
+                ? "text-text-primary bg-bg border-b-2 border-accent"
                 : "text-text-muted hover:text-text-secondary"
             }`}
             onClick={() => switchConversation(conv.id)}

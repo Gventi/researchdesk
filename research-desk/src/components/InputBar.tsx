@@ -8,7 +8,11 @@ const COMMAND_CHIPS = Object.keys(SPECIAL_PROMPTS) as Array<keyof typeof SPECIAL
 export default function InputBar() {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { activeModel, isGenerating, apiKey, selectedPaperIds, addMessage, updateMessage, setIsGenerating, pendingQuery, setPendingQuery } = useStore();
+  const { activeModel, isGenerating, apiKey, selectedPaperIds, papers, addMessage, updateMessage, setIsGenerating, pendingQuery, setPendingQuery, activeProjectId, projects } = useStore();
+
+  // When a project is active, scope chat to only that project's papers
+  const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null;
+  const effectiveSelectedIds = activeProject ? activeProject.paperIds : selectedPaperIds;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -71,20 +75,25 @@ export default function InputBar() {
     });
 
     try {
-      // RAG retrieval — use the resolved query for better embedding match
+      // Use tools via sendMessage
       let contextChunks = "";
-      if (selectedPaperIds.length > 0) {
+      if (effectiveSelectedIds.length > 0) {
         const searchQuery = isCommand ? query : rawQuery;
-        const retrieved = await queryRAG(searchQuery, selectedPaperIds, apiKey);
+        const retrieved = await queryRAG(searchQuery, effectiveSelectedIds, apiKey);
         contextChunks = formatContextChunks(retrieved);
       }
 
-      // Stream response
-      let accumulated = "";
-      await sendMessage(query, contextChunks, activeModel, apiKey, (token) => {
-        accumulated += token;
-        updateMessage(assistantId, accumulated);
-      });
+      await sendMessage(
+        query,
+        contextChunks,
+        activeModel,
+        apiKey,
+        effectiveSelectedIds,
+        papers,
+        (token) => {
+          updateMessage(assistantId, token);
+        },
+      );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An error occurred";
       updateMessage(assistantId, `Error: ${errorMsg}`);
@@ -93,10 +102,7 @@ export default function InputBar() {
     }
   };
 
-  const buttonColor =
-    activeModel === "quick"
-      ? "bg-gold hover:bg-gold-dim"
-      : "bg-steel hover:bg-steel-dim";
+  const buttonColor = "bg-accent hover:bg-accent-dim";
 
   return (
     <div className="px-4 pb-4 pt-2">

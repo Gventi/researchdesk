@@ -14,11 +14,22 @@
   --color-steel: #7aaccb;
   --color-steel-dim: #5a8aab;
   --color-danger: #c87a7a;
+  --color-accent: var(--color-gold);
+  --color-accent-dim: var(--color-gold-dim);
+}
+
+[data-mode="deep"] {
+  --color-accent: var(--color-steel);
+  --color-accent-dim: var(--color-steel-dim);
 }
 
 @layer base {
+  :root {
+    transition: --color-accent 0.3s ease, --color-accent-dim 0.3s ease;
+  }
   body {
     font-family: Georgia, "Times New Roman", Times, serif;
+    font-size: 14px;
     background-color: var(--color-bg);
     color: var(--color-text-primary);
     margin: 0;
@@ -55,6 +66,18 @@
 /* Sans-serif for UI elements */
 .font-ui {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Enforce 12px minimum font size across the app */
+* {
+  min-font-size: 12px;
+}
+
+/* Override Tailwind's tiny arbitrary sizes so nothing renders below 12px */
+[class*="text-\[9px\]"],
+[class*="text-\[10px\]"],
+[class*="text-\[11px\]"] {
+  font-size: 12px !important;
 }
 
 /* Message fade-in */

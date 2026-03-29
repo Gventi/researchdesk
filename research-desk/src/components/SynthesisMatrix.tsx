@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../lib/store";
-import { getAnalysis, getMeta } from "../lib/rag";
+import { getAnalysis, getMeta, saveAnalysis } from "../lib/rag";
+import { analyzePaper } from "../lib/gemini";
 
 const COLUMNS = [
   { key: "title", label: "Paper" },
@@ -12,8 +13,9 @@ const COLUMNS = [
 ] as const;
 
 export default function SynthesisMatrix() {
-  const { papers, selectedPaperIds } = useStore();
+  const { papers, selectedPaperIds, apiKey, updatePaper } = useStore();
   const [copied, setCopied] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   const selectedPapers = papers.filter((p) => selectedPaperIds.includes(p.id));
 
@@ -22,6 +24,7 @@ export default function SynthesisMatrix() {
     const meta = getMeta(paper.id);
     return {
       id: paper.id,
+      paper,
       title: meta?.title && meta.title !== "Unknown" ? meta.title : paper.filename.replace(/\.pdf$/i, ""),
       year: meta?.year && meta.year !== "Unknown" ? meta.year : "—",
       methodology: analysis?.methodology || "Not analyzed",
@@ -31,13 +34,30 @@ export default function SynthesisMatrix() {
     };
   });
 
+  const handleRegenerate = async (paperId: string) => {
+    const paper = papers.find((p) => p.id === paperId);
+    if (!paper || !apiKey.trim()) return;
+
+    setRegeneratingId(paperId);
+    try {
+      const fullText = paper.pages.map((pg) => pg.text).join("\n\n");
+      const analysis = await analyzePaper(fullText, apiKey);
+      await saveAnalysis(paperId, analysis);
+      updatePaper(paperId, { analysis });
+    } catch (err) {
+      console.error("Regeneration failed:", err);
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
+
   const handleExport = async () => {
     // Export as tab-separated values for pasting into Word/Excel
     const header = COLUMNS.map((c) => c.label).join("\t");
     const body = rows
       .map((row) =>
         COLUMNS.map((c) => {
-          const val = row[c.key] || "";
+          const val = (row as any)[c.key] || "";
           // Replace newlines and tabs for clean TSV
           return val.replace(/[\t\n\r]+/g, " ").trim();
         }).join("\t"),
@@ -73,7 +93,7 @@ export default function SynthesisMatrix() {
         </div>
         <button
           onClick={handleExport}
-          className="font-ui text-[10px] px-3 py-1.5 rounded bg-bg-tertiary border border-border text-text-muted hover:text-text-primary hover:border-gold/40 transition-colors"
+          className="font-ui text-[10px] px-3 py-1.5 rounded bg-bg-tertiary border border-border text-text-muted hover:text-text-primary hover:border-accent/40 transition-colors"
         >
           {copied ? "Copied to clipboard!" : "Copy as Table"}
         </button>
@@ -92,11 +112,12 @@ export default function SynthesisMatrix() {
                   {col.label}
                 </th>
               ))}
+              <th className="px-3 py-2 border-b border-border bg-bg-secondary sticky top-0"></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-b border-border hover:bg-bg-hover transition-colors">
+              <tr key={row.id} className="border-b border-border hover:bg-bg-hover transition-colors group">
                 {COLUMNS.map((col) => (
                   <td
                     key={col.key}
@@ -104,15 +125,24 @@ export default function SynthesisMatrix() {
                       col.key === "title"
                         ? "text-text-primary font-medium min-w-[180px] max-w-[220px]"
                         : col.key === "year"
-                          ? "text-text-secondary font-ui text-xs min-w-[60px]"
+                          ? "text-text-secondary font-ui text-sm min-w-[60px]"
                           : "text-text-secondary min-w-[200px] max-w-[300px]"
                     }`}
                   >
-                    <div className={col.key === "title" || col.key === "year" ? "" : "line-clamp-6 text-xs leading-relaxed"}>
-                      {row[col.key]}
+                    <div className={col.key === "title" || col.key === "year" ? "" : "max-h-40 overflow-y-auto text-sm leading-relaxed"}>
+                      {(row as any)[col.key]}
                     </div>
                   </td>
                 ))}
+                <td className="px-3 py-3 align-top">
+                  <button
+                    onClick={() => handleRegenerate(row.id)}
+                    disabled={regeneratingId === row.id}
+                    className="opacity-0 group-hover:opacity-100 font-ui text-[9px] px-2 py-1 rounded bg-bg-tertiary border border-border text-text-muted hover:text-text-primary hover:border-accent/40 transition-all disabled:opacity-40"
+                  >
+                    {regeneratingId === row.id ? "Analysing..." : "Regenerate"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

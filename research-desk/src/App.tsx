@@ -1,16 +1,23 @@
+import { useEffect } from "react";
 import { useStore } from "./lib/store";
 import Sidebar from "./components/Sidebar";
 import Desk from "./components/Desk";
 import Home from "./components/Home";
-import PdfViewer from "./components/PdfViewer";
+import PdfSplitView from "./components/PdfSplitView";
 import PaperDetail from "./components/PaperDetail";
 import SynthesisMatrix from "./components/SynthesisMatrix";
+import ProjectDashboard from "./components/ProjectDashboard";
 import SettingsModal from "./components/SettingsModal";
 
 export default function App() {
   const { activeModel, setActiveModel, toggleSidebar, setSettingsOpen, viewingPaperId, detailPaperId, activeView, setActiveView } = useStore();
 
-  const showHome = activeView === "home" || activeView === "project";
+  useEffect(() => {
+    document.documentElement.setAttribute("data-mode", activeModel);
+  }, [activeModel]);
+
+  const showHome = activeView === "home";
+  const showProject = activeView === "project";
   const showChat = activeView === "chat";
   const showSynthesis = activeView === "synthesis";
 
@@ -33,7 +40,7 @@ export default function App() {
             <button
               onClick={() => setActiveView("home")}
               className={`px-2.5 py-1 rounded transition-colors ${
-                showHome ? "text-text-primary" : "text-text-muted hover:text-text-secondary"
+                showHome || showProject ? "text-text-primary" : "text-text-muted hover:text-text-secondary"
               }`}
             >
               Home
@@ -110,7 +117,9 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         {viewingPaperId ? (
-          <PdfViewer />
+          <PdfSplitView />
+        ) : showProject ? (
+          <ProjectDashboard />
         ) : showHome ? (
           <Home />
         ) : showSynthesis ? (
